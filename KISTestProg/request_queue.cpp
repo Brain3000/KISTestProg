@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include <assert.h>
 #include <iostream>
 
 #include "main_functions.h"
@@ -16,8 +17,11 @@ RequestQueue::RequestQueue() :
 
 bool RequestQueue::Push(Request* request)
 {
-    if (!request)
-        return false;
+	if (!request)
+	{
+		assert(false);
+		return false;
+	}
     DWORD res = ::WaitForSingleObject(m_mutex.get(), INFINITE);
     ReleaseMutexGuard guard(m_mutex.get());
     if (res != WAIT_OBJECT_0)
@@ -26,7 +30,8 @@ bool RequestQueue::Push(Request* request)
         return true;
     }
     m_queue.push(request);
-    return true;
+	std::cout << "Request with id " << request->Id() << " was added to queue\n";
+	return true;
 }
 
 Request* RequestQueue::Pop()
@@ -44,7 +49,8 @@ Request* RequestQueue::Pop()
     if (!m_queue.empty())
     {
         requestToReturn = m_queue.front();
-        m_queue.pop();
+		std::cout << "Request with id " << requestToReturn->Id() << " was removed from queue\n";
+		m_queue.pop();
     }
 
     return requestToReturn;
@@ -60,7 +66,7 @@ bool RequestQueue::Clear()
         std::cout << "Error in RequestQueue::Clear: WaitForSingleObject returned " << res << std::endl;
         return false;
     }
-    std::cout << "Queue will be cleare\n";
+    std::cout << "Queue will be clear\n";
     std::cout << (m_queue.empty() ? "Queue is empty" : "Queue is not empty") << std::endl;
     while (!m_queue.empty())
     {
@@ -70,4 +76,4 @@ bool RequestQueue::Clear()
         DeleteRequest(request);
     }
     return true;
-}
+} 
