@@ -1,7 +1,8 @@
 #include "stdafx.h"
-#include <chrono>
 #include <atomic>
 #include <assert.h>
+#include <iostream>
+#include <chrono>
 #include <thread>
 
 #include "request.h"
@@ -17,11 +18,15 @@ void EmulateLongTimeOperation(Stopper stopSignal, bool& result)
 
 Request* GetRequest(Stopper stopSignal)
 {
-    bool operationResult(false);
-    std::thread longOperationThread(EmulateLongTimeOperation, stopSignal, std::ref(operationResult));
-    longOperationThread.join();
-
-    return operationResult ? nullptr : new (std::nothrow) Request;
+	bool operationResult(!stopSignal.GetInstance().IsStopped());
+	if (operationResult)
+	{
+		std::thread longOperationThread(EmulateLongTimeOperation, stopSignal, std::ref(operationResult));
+		longOperationThread.join();
+	}
+	//if (!operationResult)
+	//	std::cout << "GetRequest canceled\n";
+    return operationResult ? new (std::nothrow) Request : nullptr;
 }
 
 void ProcessRequest(Request* request, Stopper stopSignal)
@@ -29,11 +34,15 @@ void ProcessRequest(Request* request, Stopper stopSignal)
     assert(request);
     if (!request)
         return;
-    request->SetState(RequestState::ProcessingBegin);
-    bool operationResult(false);
-    std::thread longOperationThread(EmulateLongTimeOperation, stopSignal, std::ref(operationResult));
-    longOperationThread.join();
-    request->SetState(operationResult ? RequestState::ProcessingEndSuccess : RequestState::ProcessingEndFail);
+	if (bool operationResult = !stopSignal.GetInstance().IsStopped())
+	{
+		request->SetState(RequestState::ProcessingBegin);
+		std::thread longOperationThread(EmulateLongTimeOperation, stopSignal, std::ref(operationResult));
+		longOperationThread.join();
+		//if (!operationResult)
+		//	std::cout << "Process Request with id " << request->Id() << "canceled\n";
+		request->SetState(operationResult ? RequestState::ProcessingEndSuccess : RequestState::ProcessingEndFail);
+	}
 }
 
 void DeleteRequest(Request* request)
